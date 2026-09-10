@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Studio</title>
+  <meta name="description" content="Suíte profissional para visualizar, organizar, editar, rotacionar, combinar, imprimir e exportar PDFs diretamente no navegador." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-area">
+        <div class="brand-mark" aria-hidden="true">P</div>
+        <div class="brand-copy">
+          <div class="brand-title-row">
+            <div class="brand-title">PDF Studio</div>
+            <span class="version-badge">v1.4.1</span>
+          </div>
+          <div class="document-name-row">
+            <input id="documentNameInput" class="document-name-input" value="documento.pdf" aria-label="Nome do documento" spellcheck="false" />
+            <span class="dirty-dot hidden" id="dirtyDot" title="Alterações não exportadas"></span>
+          </div>
+          <div class="brand-subtitle" id="documentMeta">Nenhum documento aberto</div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="document-menu-wrap">
+          <button class="btn btn-secondary" id="newDocumentBtn" aria-haspopup="menu" aria-expanded="false">
+            <span>＋</span><span>Novo documento</span><span class="chevron">▾</span>
+          </button>
+          <div class="document-menu hidden" id="newDocumentMenu" role="menu">
+            <button class="document-menu-item" id="newBlankBtn" role="menuitem">
+              <span class="menu-icon">□</span>
+              <span><strong>Novo em branco</strong><small>Cria uma página A4 vazia</small></span>
+            </button>
+            <button class="document-menu-item" id="loadDocumentBtn" role="menuitem">
+              <span class="menu-icon">⌁</span>
+              <span><strong>Carregar de arquivo</strong><small>Abre PDF ou imagem</small></span>
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-ghost" id="organizeBtn" title="Organizar páginas em grade" disabled><span>▦</span><span>Organizar</span></button>
+        <button class="btn btn-ghost" id="propertiesBtn" title="Propriedades do documento" disabled><span>ⓘ</span><span>Propriedades</span></button>
+        <button class="btn btn-ghost" id="aboutBtn" title="Sobre o PDF Studio"><span>ⓘ</span><span>Sobre</span></button>
+        <button class="btn btn-ghost" id="printBtn" title="Imprimir documento (Ctrl+P)" disabled><span>⎙</span><span>Imprimir</span></button>
+        <button class="btn btn-primary" id="exportBtn" title="Exportar PDF (Ctrl+S)" disabled><span>⇩</span><span>Exportar PDF</span></button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" aria-label="Painel de páginas">
+        <section class="import-panel">
+          <div class="panel-heading-row">
+            <div><h2>Páginas</h2><p>Componha o documento</p></div>
+            <span class="page-count" id="pageCountBadge">0</span>
+          </div>
+
+          <div class="composition-controls" aria-label="Controles do documento">
+            <button class="composition-btn" id="undoBtn" title="Desfazer (Ctrl+Z)" disabled><span class="composition-icon">↶</span><span>Desfazer</span></button>
+            <button class="composition-btn" id="redoBtn" title="Refazer (Ctrl+Y)" disabled><span class="composition-icon">↷</span><span>Refazer</span></button>
+            <button class="composition-btn" id="rotateAllLeftBtn" title="Rotacionar todas 90° à esquerda" disabled><span class="composition-icon">↺</span><span>Todas</span></button>
+            <button class="composition-btn" id="rotateAllRightBtn" title="Rotacionar todas 90° à direita" disabled><span class="composition-icon">↻</span><span>Todas</span></button>
+          </div>
+
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Carregar PDF ou imagem">
+            <div class="dropzone-icon">＋</div>
+            <div class="dropzone-title">PDF ou imagem</div>
+            <div class="dropzone-subtitle">Arraste arquivos aqui ou use os botões abaixo</div>
+          </div>
+
+          <div class="import-actions-grid">
+            <button class="btn btn-secondary span-2" id="openFileBtn"><span>⌁</span><span>Carregar arquivo</span></button>
+            <button class="btn btn-soft" id="insertBeforeBtn" disabled><span>↑</span><span>Antes</span></button>
+            <button class="btn btn-soft" id="insertAfterBtn" disabled><span>↓</span><span>Depois</span></button>
+          </div>
+          <div class="image-import-row">
+            <label for="imagePageMode">Ao inserir imagem</label>
+            <select id="imagePageMode">
+              <option value="original">Tamanho original</option>
+              <option value="fit-a4">Ajustar em A4</option>
+              <option value="fill-a4">Preencher A4</option>
+            </select>
+          </div>
+          <div class="helper-text" id="insertHint">Abra um arquivo para iniciar.</div>
+        </section>
+
+        <section class="selection-bar hidden" id="selectionBar" aria-label="Ações da seleção">
+          <div class="selection-head"><strong id="selectionCount">0 selecionadas</strong><button class="mini-link" id="clearSelectionBtn">Limpar</button></div>
+          <div class="selection-actions">
+            <button title="Rotacionar selecionadas à esquerda" data-selection-action="left">↺</button>
+            <button title="Rotacionar selecionadas à direita" data-selection-action="right">↻</button>
+            <button title="Duplicar selecionadas" data-selection-action="duplicate">⧉</button>
+            <button title="Extrair selecionadas" data-selection-action="extract">⇱</button>
+            <button class="danger" title="Excluir selecionadas" data-selection-action="delete">×</button>
+          </div>
+        </section>
+
+        <section class="thumb-scroll" id="thumbScroll">
+          <div class="thumb-list" id="thumbList"></div>
+          <div class="empty-sidebar" id="emptySidebar">
+            <div class="empty-icon">▤</div><strong>Sem páginas</strong><span>Adicione um PDF ou imagem.</span>
+          </div>
+        </section>
+      </aside>
+
+      <section class="preview-area" aria-label="Visualização do documento">
+        <div class="preview-toolbar">
+          <div class="preview-status"><span class="status-dot"></span><span id="previewStatus">Preview do documento</span></div>
+
+          <div class="page-navigation">
+            <button class="icon-btn" id="prevPageBtn" title="Página anterior" disabled>‹</button>
+            <button class="page-position" id="pagePositionBtn" disabled><span id="currentPageNumber">0</span><span class="page-position-sep">/</span><span id="totalPageNumber">0</span></button>
+            <button class="icon-btn" id="nextPageBtn" title="Próxima página" disabled>›</button>
+          </div>
+
+          <div class="zoom-controls">
+            <button class="icon-btn" id="zoomOutBtn" title="Diminuir zoom" disabled>−</button>
+            <button class="zoom-value" id="zoomValueBtn" title="Voltar para 100%" disabled>100%</button>
+            <button class="icon-btn" id="zoomInBtn" title="Aumentar zoom" disabled>＋</button>
+            <button class="icon-btn text-icon" id="fitWidthBtn" title="Ajustar à largura" disabled>↔</button>
+            <button class="icon-btn text-icon" id="fitBtn" title="Ajustar página" disabled>□</button>
+            <button class="icon-btn" id="fullscreenBtn" title="Tela cheia" disabled>⛶</button>
+          </div>
+        </div>
+
+        <div class="edit-toolbar" id="editToolbar" aria-label="Ferramentas de edição">
+          <div class="edit-mode-group">
+            <button class="edit-tool active" id="selectToolBtn" title="Selecionar e mover objetos (V)" disabled><span>↖</span><span>Selecionar</span></button>
+            <button class="edit-tool" id="textToolBtn" title="Adicionar texto (T)" disabled><span class="tool-letter">T</span><span>Texto</span></button>
+            <button class="edit-tool" id="editExistingTextBtn" title="Editar texto existente do PDF (E)" disabled><span>✎</span><span>Editar texto</span></button>
+            <button class="edit-tool" id="imageToolBtn" title="Adicionar imagem" disabled><span>▧</span><span>Imagem</span></button>
+          </div>
+
+          <div class="object-properties hidden" id="objectProperties">
+            <div class="text-properties hidden" id="textProperties">
+              <select id="textFontFamily" title="Fonte">
+                <option value="Helvetica">Helvetica</option>
+                <option value="Times">Times</option>
+                <option value="Courier">Courier</option>
+              </select>
+              <label class="compact-field" title="Tamanho da fonte"><input id="textFontSize" type="number" min="6" max="144" step="1" value="18"><span>pt</span></label>
+              <button class="format-btn" id="textBoldBtn" title="Negrito"><strong>B</strong></button>
+              <button class="format-btn" id="textItalicBtn" title="Itálico"><em>I</em></button>
+              <select id="textAlign" title="Alinhamento"><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select>
+              <label class="color-field" title="Cor do texto"><span>Cor</span><input id="textColor" type="color" value="#111111"></label>
+            </div>
+            <div class="common-object-properties">
+              <label class="compact-field opacity-field" title="Opacidade"><span>Op.</span><input id="objectOpacity" type="number" min="10" max="100" step="5" value="100"><span>%</span></label>
+              <label class="compact-field" title="Rotação do objeto"><input id="objectRotation" type="number" min="-360" max="360" step="1" value="0"><span>°</span></label>
+              <button class="format-btn" id="sendBackBtn" title="Enviar para trás">⇩</button>
+              <button class="format-btn" id="bringFrontBtn" title="Trazer para frente">⇧</button>
+              <button class="format-btn" id="duplicateObjectBtn" title="Duplicar objeto">⧉</button>
+              <button class="format-btn danger" id="deleteObjectBtn" title="Excluir objeto">×</button>
+            </div>
+          </div>
+          <div class="edit-hint" id="editHint">Selecione Texto ou Imagem para adicionar elementos à página.</div>
+        </div>
+
+        <div class="preview-stage" id="previewStage">
+          <div class="preview-placeholder" id="previewPlaceholder">
+            <div class="placeholder-document"><div class="placeholder-line wide"></div><div class="placeholder-line"></div><div class="placeholder-line short"></div></div>
+            <h1>Visualização final</h1>
+            <p>O painel à direita mostra como a página selecionada ficará no PDF exportado.</p>
+          </div>
+          <div class="page-canvas-wrap hidden" id="pageCanvasWrap"><canvas id="previewCanvas"></canvas><div class="editor-layer" id="editorLayer" aria-label="Camada de edição"></div></div>
+        </div>
+
+        <footer class="preview-footer">
+          <div id="selectedPageLabel">Nenhuma página selecionada</div>
+          <div class="preview-footer-center" id="pageDimensionLabel"></div>
+          <div class="privacy-note">Processamento local no navegador</div>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <input id="fileInput" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden />
+  <input id="overlayImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+
+  <div class="insert-menu hidden" id="insertMenu" role="menu">
+    <button id="insertBlankMenuBtn" role="menuitem"><span>□</span><span><strong>Página em branco</strong><small>A4 no ponto selecionado</small></span></button>
+    <button id="insertFileMenuBtn" role="menuitem"><span>⌁</span><span><strong>PDF ou imagem</strong><small>Inserir arquivo neste ponto</small></span></button>
+  </div>
+
+  <div class="context-menu hidden" id="pageContextMenu" role="menu">
+    <button data-context-action="insert-before"><span>↑</span>Inserir antes</button>
+    <button data-context-action="insert-after"><span>↓</span>Inserir depois</button>
+    <div class="context-separator"></div>
+    <button data-context-action="duplicate"><span>⧉</span>Duplicar</button>
+    <button data-context-action="move-to"><span>⇅</span>Mover página para...</button>
+    <button data-context-action="rotate-left"><span>↺</span>Rotacionar à esquerda</button>
+    <button data-context-action="rotate-right"><span>↻</span>Rotacionar à direita</button>
+    <button data-context-action="extract"><span>⇱</span>Extrair para novo PDF</button>
+    <div class="context-separator image-context-separator hidden"></div>
+    <button class="image-only hidden" data-context-action="image-original"><span>▣</span>Imagem no tamanho original</button>
+    <button class="image-only hidden" data-context-action="image-fit"><span>▤</span>Ajustar imagem em A4</button>
+    <button class="image-only hidden" data-context-action="image-fill"><span>▥</span>Preencher página A4</button>
+    <div class="context-separator"></div>
+    <button class="danger" data-context-action="delete"><span>×</span>Excluir</button>
+  </div>
+
+  <div class="move-page-popover hidden" id="movePagePopover" role="dialog" aria-labelledby="movePageTitle">
+    <div class="move-page-title" id="movePageTitle">Mover página para...</div>
+    <label class="move-page-field" for="movePageCurrent"><span>Página</span><input id="movePageCurrent" type="number" value="1" readonly tabindex="-1" /></label>
+    <label class="move-page-field" for="movePageDestination"><span>Mover para página</span><input id="movePageDestination" type="number" min="1" step="1" value="1" inputmode="numeric" /></label>
+    <div class="move-page-actions"><button class="btn btn-secondary btn-compact" id="movePageCancelBtn">Cancelar</button><button class="btn btn-primary btn-compact" id="movePageOkBtn">OK</button></div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="organizeModal" role="dialog" aria-modal="true" aria-labelledby="organizeTitle">
+    <div class="modal-card organize-modal-card">
+      <div class="modal-header">
+        <div><h2 id="organizeTitle">Organizar páginas</h2><p>Use Ctrl/⌘ ou Shift para selecionar. Arraste para reordenar.</p></div>
+        <button class="icon-btn" id="closeOrganizeBtn" aria-label="Fechar">×</button>
+      </div>
+      <div class="organize-toolbar">
+        <div><strong id="organizeSelectionCount">0 selecionadas</strong></div>
+        <div class="organize-actions">
+          <button class="btn btn-soft" id="organizeAddBlankBtn">＋ Em branco</button>
+          <button class="btn btn-soft" id="organizeAddFileBtn">⌁ Arquivo</button>
+          <button class="btn btn-soft" id="organizeDuplicateBtn" disabled>⧉ Duplicar</button>
+          <button class="btn btn-soft" id="organizeExtractBtn" disabled>⇱ Extrair</button>
+          <button class="btn btn-soft danger-outline" id="organizeDeleteBtn" disabled>× Excluir</button>
+        </div>
+      </div>
+      <div class="organize-grid" id="organizeGrid"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="propertiesModal" role="dialog" aria-modal="true" aria-labelledby="propertiesTitle">
+    <div class="modal-card properties-card">
+      <div class="modal-header">
+        <div><h2 id="propertiesTitle">Propriedades do documento</h2><p>Informações da composição atual.</p></div>
+        <button class="icon-btn" id="closePropertiesBtn" aria-label="Fechar">×</button>
+      </div>
+      <div class="properties-grid">
+        <div class="property-item"><span>Nome</span><strong id="propName">—</strong></div>
+        <div class="property-item"><span>Páginas</span><strong id="propPages">0</strong></div>
+        <div class="property-item"><span>Fontes carregadas</span><strong id="propSources">0</strong></div>
+        <div class="property-item"><span>Tamanho das fontes</span><strong id="propSourceSize">0 MB</strong></div>
+        <div class="property-item"><span>Orientações</span><strong id="propOrientation">—</strong></div>
+        <div class="property-item"><span>Elementos adicionados</span><strong id="propObjects">0</strong></div>
+        <div class="property-item"><span>Alterações</span><strong id="propDirty">—</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <div class="modal-card properties-card">
+      <div class="modal-header">
+        <div><h2 id="aboutTitle">Sobre o PDF Studio</h2><p>Visualizador, organizador e editor de PDF executado localmente no navegador.</p></div>
+        <button class="icon-btn" id="closeAboutBtn" aria-label="Fechar">×</button>
+      </div>
+      <div class="properties-grid">
+        <div class="property-item"><span>Versão</span><strong>V1.4.1</strong></div>
+        <div class="property-item"><span>Autor</span><strong>Roberto Fettuccia</strong></div>
+        <div class="property-item"><span>Licença do PDF Studio</span><strong>GPL-3.0-or-later</strong></div>
+        <div class="property-item"><span>Execução</span><strong>Local / offline</strong></div>
+      </div>
+      <div class="about-dependencies">
+        <h3>Dependências incluídas</h3>
+        <div class="dependency-row"><div><strong>PDF.js 3.11.174</strong><span>Renderização, leitura e extração de texto de PDFs</span></div><code>Apache-2.0</code></div>
+        <div class="dependency-row"><div><strong>pdf-lib 1.17.1</strong><span>Composição, criação e exportação de PDFs</span></div><code>MIT</code></div>
+        <p class="about-note">As bibliotecas são carregadas do diretório <code>libs/</code>. Os textos das licenças de terceiros acompanham o pacote. O código-fonte do PDF Studio é distribuído sob GPL-3.0-or-later.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div><h2 id="exportTitle">Exportar PDF</h2><p>Escolha a qualidade de saída.</p></div>
+        <button class="icon-btn" id="closeExportModalBtn" aria-label="Fechar">×</button>
+      </div>
+
+      <div class="modal-body">
+        <label class="option-card selected" data-export-mode="original">
+          <input type="radio" name="exportMode" value="original" checked />
+          <div><strong>Sem compressão</strong><span>Preserva páginas PDF vetoriais e imagens originais sempre que possível. Páginas editadas são compostas a 300 DPI.</span></div>
+        </label>
+        <label class="option-card" data-export-mode="compressed">
+          <input type="radio" name="exportMode" value="compressed" />
+          <div><strong>Com compressão</strong><span>Rasteriza a saída com controle de cor, resolução e qualidade.</span></div>
+        </label>
+
+        <div class="compression-settings disabled" id="compressionSettings">
+          <div class="field-group"><label for="colorMode">Modo de cor</label><select id="colorMode"><option value="color">Cor</option><option value="grayscale">Tons de cinza</option><option value="mono">Monocromático</option></select></div>
+          <div class="field-group"><label for="dpiRange">Resolução <strong id="dpiValue">200 DPI</strong></label><input id="dpiRange" type="range" min="100" max="400" step="25" value="200" /><div class="range-labels"><span>100</span><span>400 DPI</span></div></div>
+          <div class="field-group"><label for="jpegQuality">Qualidade de imagem <strong id="qualityValue">82%</strong></label><input id="jpegQuality" type="range" min="45" max="95" step="1" value="82" /><div class="range-labels"><span>Menor arquivo</span><span>Mais qualidade</span></div></div>
+          <label class="checkbox-row"><input type="checkbox" id="monoDither" checked /><span>Suavizar conversão monocromática</span></label>
+        </div>
+
+        <div class="export-estimate-card">
+          <div><span>Fontes carregadas</span><strong id="exportSourceSize">0 MB</strong></div>
+          <div><span>Estimativa de saída</span><strong id="exportEstimatedSize">—</strong></div>
+          <small>A estimativa da saída comprimida é aproximada e depende do conteúdo de cada página.</small>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="export-summary" id="exportSummary">Saída: PDF sem compressão</div>
+        <div class="modal-actions"><button class="btn btn-secondary" id="cancelExportBtn">Cancelar</button><button class="btn btn-primary" id="confirmExportBtn">Gerar PDF</button></div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="modal-backdrop hidden" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-card confirm-card">
+      <div class="modal-header"><div><h2 id="confirmTitle">Alterações não exportadas</h2><p id="confirmText">Existem alterações que ainda não foram exportadas.</p></div></div>
+      <div class="modal-footer"><div class="export-summary">Continuar descartará essas alterações.</div><div class="modal-actions"><button class="btn btn-secondary" id="confirmCancelBtn">Cancelar</button><button class="btn btn-primary" id="confirmProceedBtn">Continuar</button></div></div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <div class="processing-overlay hidden" id="processingOverlay"><div class="processing-card"><div class="spinner"></div><strong id="processingTitle">Processando PDF...</strong><span id="processingDetail">Preparando páginas</span><div class="progress-track"><div class="progress-bar" id="progressBar"></div></div></div></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
