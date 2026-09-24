@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDF Studio</title>
   <meta name="description" content="Suíte profissional para visualizar, organizar, editar, rotacionar, combinar, imprimir e exportar PDFs diretamente no navegador." />
+  <meta name="pdf-studio-clipboard-bridge" content="PDF_Studio.V1.5.0" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,7 +16,7 @@
         <div class="brand-copy">
           <div class="brand-title-row">
             <div class="brand-title">PDF Studio</div>
-            <span class="version-badge">v1.4.1</span>
+            <span class="version-badge">v1.5.0</span>
           </div>
           <div class="document-name-row">
             <input id="documentNameInput" class="document-name-input" value="documento.pdf" aria-label="Nome do documento" spellcheck="false" />
@@ -67,7 +68,7 @@
           <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Carregar PDF ou imagem">
             <div class="dropzone-icon">＋</div>
             <div class="dropzone-title">PDF ou imagem</div>
-            <div class="dropzone-subtitle">Arraste arquivos aqui ou use os botões abaixo</div>
+            <div class="dropzone-subtitle">Clique para escolher a origem ou arraste arquivos aqui</div>
           </div>
 
           <div class="import-actions-grid">
@@ -208,6 +209,29 @@
     <div class="move-page-actions"><button class="btn btn-secondary btn-compact" id="movePageCancelBtn">Cancelar</button><button class="btn btn-primary btn-compact" id="movePageOkBtn">OK</button></div>
   </div>
 
+
+  <div class="modal-backdrop hidden" id="importSourceModal" role="dialog" aria-modal="true" aria-labelledby="importSourceTitle">
+    <div class="modal-card import-source-card">
+      <div class="modal-header">
+        <div><h2 id="importSourceTitle">Adicionar ao PDF</h2><p>Escolha de onde vem o conteúdo.</p></div>
+        <button class="icon-btn" id="closeImportSourceBtn" aria-label="Fechar">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="import-source-grid">
+          <button class="import-source-option" id="clipboardImportBtn" type="button">
+            <span class="import-source-icon" aria-hidden="true">▣</span>
+            <span class="import-source-copy"><strong>Imagem do clipboard</strong><small>Colar da área de transferência — imagem apenas.</small></span>
+          </button>
+          <button class="import-source-option import-drag-option" id="dragImportBtn" type="button">
+            <span class="import-source-icon" aria-hidden="true">⇩</span>
+            <span class="import-source-copy"><strong>Arrastar arquivo</strong><small>Arraste PDF ou imagem para este bloco. Clique para selecionar.</small></span>
+          </button>
+        </div>
+        <div class="import-source-status" id="importSourceStatus" aria-live="polite">Também é possível pressionar Ctrl+V com este modal aberto para colar uma imagem.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop hidden" id="organizeModal" role="dialog" aria-modal="true" aria-labelledby="organizeTitle">
     <div class="modal-card organize-modal-card">
       <div class="modal-header">
@@ -253,7 +277,7 @@
         <button class="icon-btn" id="closeAboutBtn" aria-label="Fechar">×</button>
       </div>
       <div class="properties-grid">
-        <div class="property-item"><span>Versão</span><strong>V1.4.1</strong></div>
+        <div class="property-item"><span>Versão</span><strong>V1.5.0</strong></div>
         <div class="property-item"><span>Autor</span><strong>Roberto Fettuccia</strong></div>
         <div class="property-item"><span>Licença do PDF Studio</span><strong>GPL-3.0-or-later</strong></div>
         <div class="property-item"><span>Execução</span><strong>Local / offline</strong></div>

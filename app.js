@@ -1,4 +1,4 @@
-/* PDF Studio v1.4.1 - client-side PDF viewer/composer/editor */
+/* PDF Studio v1.5.0 - client-side PDF viewer/composer/editor */
 (() => {
   'use strict';
 
@@ -116,6 +116,12 @@
     organizeDuplicateBtn: $('#organizeDuplicateBtn'),
     organizeExtractBtn: $('#organizeExtractBtn'),
     organizeDeleteBtn: $('#organizeDeleteBtn'),
+
+    importSourceModal: $('#importSourceModal'),
+    closeImportSourceBtn: $('#closeImportSourceBtn'),
+    clipboardImportBtn: $('#clipboardImportBtn'),
+    dragImportBtn: $('#dragImportBtn'),
+    importSourceStatus: $('#importSourceStatus'),
 
     propertiesModal: $('#propertiesModal'),
     aboutModal: $('#aboutModal'),
@@ -1698,6 +1704,157 @@
     refreshComposition();
   }
 
+  function dropzoneImportContext() {
+    const idx = getSelectedIndex();
+    return state.pages.length
+      ? { mode: 'insert', index: idx < 0 ? state.pages.length : idx + 1 }
+      : { mode: 'replace', index: 0 };
+  }
+
+  function setImportSourceStatus(message, type = '') {
+    if (!els.importSourceStatus) return;
+    els.importSourceStatus.textContent = message;
+    els.importSourceStatus.classList.toggle('error', type === 'error');
+    els.importSourceStatus.classList.toggle('success', type === 'success');
+  }
+
+  function openImportSourceModal() {
+    if (state.busy) return;
+    closeInsertMenu();
+    setImportSourceStatus('Também é possível pressionar Ctrl+V com este modal aberto para colar uma imagem.');
+    els.importSourceModal.classList.remove('hidden');
+    requestAnimationFrame(() => els.clipboardImportBtn?.focus());
+  }
+
+  function closeImportSourceModal() {
+    els.importSourceModal?.classList.add('hidden');
+    els.dragImportBtn?.classList.remove('dragover');
+  }
+
+  async function normalizeClipboardImageBlob(blob) {
+    if (!blob || !String(blob.type || '').startsWith('image/')) throw new Error('A área de transferência não contém uma imagem.');
+    if (/^image\/(png|jpeg|webp)$/i.test(blob.type)) return blob;
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    ctx.drawImage(bitmap, 0, 0);
+    try { bitmap.close?.(); } catch (_) {}
+    const png = await canvasToBlob(canvas, 'image/png', 1);
+    canvas.width = 1; canvas.height = 1;
+    return png;
+  }
+
+  function clipboardFileName(mime) {
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}${String(d.getSeconds()).padStart(2,'0')}`;
+    const ext = /webp/i.test(mime) ? 'webp' : /jpe?g/i.test(mime) ? 'jpg' : 'png';
+    return `clipboard-${stamp}.${ext}`;
+  }
+
+  async function importClipboardBlob(blob) {
+    const normalized = await normalizeClipboardImageBlob(blob);
+    const file = new File([normalized], clipboardFileName(normalized.type), { type: normalized.type || 'image/png' });
+    closeImportSourceModal();
+    await importFiles([file], dropzoneImportContext());
+  }
+
+  async function readClipboardImageNative() {
+    if (!navigator.clipboard?.read) throw new Error('Clipboard API indisponível.');
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const type = Array.from(item.types || []).find(t => String(t).startsWith('image/'));
+      if (type) return item.getType(type);
+    }
+    throw new Error('Nenhuma imagem encontrada na área de transferência.');
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const parts = String(dataUrl || '').split(',');
+    if (parts.length < 2) throw new Error('Imagem recebida da extensão é inválida.');
+    const meta = parts[0];
+    const mime = (/^data:([^;]+)/.exec(meta) || [,'image/png'])[1];
+    const binary = atob(parts.slice(1).join(','));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
+  function readClipboardImageFromExtension(timeoutMs = 4500) {
+    if (document.documentElement?.dataset?.pdfstudioClipboardBridge !== 'ready') {
+      return Promise.reject(new Error('Extensão do Chrome não detectada.'));
+    }
+    return new Promise((resolve, reject) => {
+      const requestId = uid('clipreq');
+      let timer;
+      const onMessage = ev => {
+        const detail = ev.data || {};
+        if (ev.source !== window || detail.source !== 'PDFSTUDIO_CLIPBOARD_BRIDGE' || detail.type !== 'CLIPBOARD_RESPONSE' || detail.requestId !== requestId) return;
+        window.removeEventListener('message', onMessage);
+        clearTimeout(timer);
+        if (!detail.ok) return reject(new Error(detail.error || 'A extensão não conseguiu ler o clipboard.'));
+        try { resolve(dataUrlToBlob(detail.dataUrl)); } catch (err) { reject(err); }
+      };
+      window.addEventListener('message', onMessage);
+      timer = setTimeout(() => {
+        window.removeEventListener('message', onMessage);
+        reject(new Error('A extensão do Chrome não respondeu.'));
+      }, timeoutMs);
+      window.postMessage({ source: 'PDFSTUDIO_APP', type: 'CLIPBOARD_REQUEST', requestId }, '*');
+    });
+  }
+
+  async function importFromClipboard() {
+    if (state.busy) return;
+    setImportSourceStatus('Lendo imagem da área de transferência…');
+    const bridgeReady = document.documentElement?.dataset?.pdfstudioClipboardBridge === 'ready';
+    let extensionError;
+
+    if (bridgeReady) {
+      try {
+        const blob = await readClipboardImageFromExtension();
+        setImportSourceStatus('Imagem recebida da extensão.', 'success');
+        await importClipboardBlob(blob);
+        return;
+      } catch (err) {
+        extensionError = err;
+      }
+    }
+
+    try {
+      const blob = await readClipboardImageNative();
+      setImportSourceStatus('Imagem encontrada.', 'success');
+      await importClipboardBlob(blob);
+      return;
+    } catch (nativeError) {
+      const msg = bridgeReady
+        ? (extensionError?.message || nativeError?.message || 'Não foi possível ler o clipboard.')
+        : 'Não foi possível ler automaticamente. Copie uma imagem e pressione Ctrl+V com este modal aberto, ou instale a extensão PDF Studio Clipboard Bridge.';
+      setImportSourceStatus(msg, 'error');
+      showToast(msg, 'error', 5500);
+    }
+  }
+
+  async function importPastedImage(event) {
+    if (els.importSourceModal?.classList.contains('hidden') || state.busy) return;
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find(item => item.kind === 'file' && String(item.type || '').startsWith('image/'));
+    if (!imageItem) {
+      setImportSourceStatus('O conteúdo colado não é uma imagem.', 'error');
+      return;
+    }
+    event.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    try {
+      setImportSourceStatus('Imagem colada.', 'success');
+      await importClipboardBlob(file);
+    } catch (err) {
+      setImportSourceStatus(err?.message || 'Não foi possível importar a imagem colada.', 'error');
+    }
+  }
+
   function openOrganizeModal() {
     if (!state.pages.length || state.busy) return;
     els.organizeModal.classList.remove('hidden');
@@ -2068,8 +2225,7 @@
 
   els.dropzone.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    if (!state.pages.length) requestReplaceFromFile();
-    else openInsertMenu(getSelectedIndex() < 0 ? state.pages.length : getSelectedIndex() + 1, els.dropzone.getBoundingClientRect().right + 6, els.dropzone.getBoundingClientRect().top + 20);
+    openImportSourceModal();
   });
   els.dropzone.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); els.dropzone.click(); } });
   ['dragenter', 'dragover'].forEach(type => els.dropzone.addEventListener(type, ev => { ev.preventDefault(); els.dropzone.classList.add('dragover'); }));
@@ -2077,9 +2233,34 @@
   els.dropzone.addEventListener('drop', ev => {
     const files = ev.dataTransfer?.files;
     if (!files?.length) return;
-    const idx = getSelectedIndex();
-    importFiles(files, state.pages.length ? { mode: 'insert', index: idx < 0 ? state.pages.length : idx + 1 } : { mode: 'replace', index: 0 });
+    importFiles(files, dropzoneImportContext());
   });
+
+  els.closeImportSourceBtn.addEventListener('click', closeImportSourceModal);
+  els.clipboardImportBtn.addEventListener('click', importFromClipboard);
+  els.importSourceModal.addEventListener('click', ev => { if (ev.target === els.importSourceModal) closeImportSourceModal(); });
+  els.dragImportBtn.addEventListener('click', () => {
+    state.importContext = dropzoneImportContext();
+    closeImportSourceModal();
+    els.fileInput.value = '';
+    els.fileInput.click();
+  });
+  ['dragenter', 'dragover'].forEach(type => els.dragImportBtn.addEventListener(type, ev => {
+    if (!hasFileTransfer(ev.dataTransfer)) return;
+    ev.preventDefault(); ev.stopPropagation(); els.dragImportBtn.classList.add('dragover');
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy';
+  }));
+  ['dragleave', 'drop'].forEach(type => els.dragImportBtn.addEventListener(type, ev => {
+    if (!hasFileTransfer(ev.dataTransfer) && type === 'drop') return;
+    ev.preventDefault(); ev.stopPropagation(); els.dragImportBtn.classList.remove('dragover');
+  }));
+  els.dragImportBtn.addEventListener('drop', ev => {
+    const files = ev.dataTransfer?.files;
+    if (!files?.length) return;
+    closeImportSourceModal();
+    importFiles(files, dropzoneImportContext());
+  });
+  document.addEventListener('paste', importPastedImage);
 
   // Composition / selection
   els.undoBtn.addEventListener('click', undo);
@@ -2242,7 +2423,8 @@
       if (state.editMode === 'text' || state.editMode === 'edit-existing') { setEditMode('select'); return; }
       if (state.selectedOverlayId) { state.selectedOverlayId = null; renderEditorLayer(getSelectedPage(), state.previewScale); return; }
       closeDocumentMenu(); closeInsertMenu(); closeContextMenu(); closeMovePagePopover();
-      if (!els.exportModal.classList.contains('hidden')) closeExportModal();
+      if (!els.importSourceModal.classList.contains('hidden')) closeImportSourceModal();
+      else if (!els.exportModal.classList.contains('hidden')) closeExportModal();
       else if (els.aboutModal && !els.aboutModal.classList.contains('hidden')) closeAboutModal();
       else if (!els.propertiesModal.classList.contains('hidden')) closePropertiesModal();
       else if (!els.organizeModal.classList.contains('hidden')) closeOrganizeModal();
@@ -2251,7 +2433,7 @@
   });
 
   function allModalsClosedForDelete() {
-    return [els.exportModal, els.propertiesModal, els.confirmModal].every(el => el.classList.contains('hidden'));
+    return [els.importSourceModal, els.exportModal, els.propertiesModal, els.confirmModal].every(el => el.classList.contains('hidden'));
   }
 
   // Navegação do preview ampliado: barras nativas + pan com Espaço/arraste ou botão do meio.

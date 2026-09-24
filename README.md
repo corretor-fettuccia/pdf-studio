@@ -1,4 +1,4 @@
-# PDF Studio V1.4.1
+# PDF Studio V1.5.0
 
 Suíte profissional de visualização, composição e edição visual de PDF feita em HTML, CSS e JavaScript. Os documentos selecionados são processados no navegador; a aplicação não possui backend próprio.
 
@@ -125,9 +125,9 @@ Não há dependência de CDN para essas bibliotecas. O processamento do document
 ## Estrutura do pacote
 O arquivo compactado e o diretório interno seguem o mesmo padrão:
 
-`PDF_Studio.V1.4.1.zip`
+`PDF_Studio.V1.5.0.zip`
 
-`PDF_Studio.V1.4.1/`
+`PDF_Studio.V1.5.0/`
 
 Arquivos principais:
 - `index.html` — interface.
@@ -171,3 +171,13 @@ PDF não é um formato de fluxo de texto como DOCX. Nesta versão a ferramenta d
 Copyright © 2026 Roberto Fettuccia.
 
 PDF Studio é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da GNU General Public License, versão 3 ou qualquer versão posterior, conforme o arquivo `LICENSE`.
+
+
+## Versão 1.5.0
+
+- Clique no drop-zone agora abre um modal de origem com duas opções: **Imagem do clipboard** e **Arrastar arquivo**.
+- **Imagem do clipboard** aceita apenas conteúdo de imagem. Em navegadores compatíveis tenta ler a imagem diretamente da área de transferência.
+- Com o modal aberto, `Ctrl+V` também cola uma imagem.
+- **Arrastar arquivo** aceita PDF, PNG, JPEG e WebP no próprio bloco; clicar no bloco abre o seletor de arquivo.
+- O drag-and-drop direto sobre o drop-zone principal continua funcionando.
+- Compatibilidade opcional com a extensão Chrome **PDF Studio Clipboard Bridge**, usada como fallback de clipboard ao executar o HTML localmente.
