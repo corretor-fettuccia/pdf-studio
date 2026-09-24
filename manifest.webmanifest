@@ -47,7 +47,11 @@
         "image/webp": [
           ".webp"
         ]
-      }
+      },
+      "launch_type": "single-client"
     }
-  ]
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

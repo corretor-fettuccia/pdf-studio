@@ -1,4 +1,4 @@
-/* PDF Studio v1.6.0 - client-side PDF viewer/composer/editor + PWA */
+/* PDF Studio v1.7.0 - client-side PDF viewer/composer/editor + PWA + auto-open */
 (() => {
   'use strict';
 
@@ -483,7 +483,7 @@
 
   async function importFiles(fileList, context = state.importContext) {
     const files = Array.from(fileList || []).filter(Boolean);
-    if (!files.length || state.busy) return;
+    if (!files.length || state.busy) return false;
 
     const oldSourceIds = new Set(state.sources.keys());
     try {
@@ -526,9 +526,11 @@
       setProgress(76, 'Criando miniaturas');
       refreshComposition();
       showToast(`${newPages.length} ${newPages.length === 1 ? 'página adicionada' : 'páginas adicionadas'}.`, 'success');
+      return true;
     } catch (err) {
       console.error(err);
       showToast(err?.message || 'Não foi possível importar o arquivo.', 'error', 5000);
+      return false;
     } finally {
       setBusy(false);
       els.fileInput.value = '';
@@ -2606,7 +2608,8 @@
     }, { once:true });
   }
 
-  // Arquivos abertos pelo sistema operacional em uma instalação PWA.
+  // Entrada automática de arquivos ---------------------------------------------------
+  // 1) PWA: ao usar "Abrir com > PDF Studio", o arquivo é entregue pela launchQueue.
   if ('launchQueue' in window && window.launchQueue?.setConsumer) {
     window.launchQueue.setConsumer(async launchParams => {
       try {
@@ -2621,26 +2624,88 @@
     });
   }
 
-  // Ponte usada pela extensão MIME Handler. O PDF chega como ArrayBuffer sem novo download.
+  function safeIncomingFileName(name, fallback = 'documento.pdf') {
+    const clean = String(name || fallback).replace(/[\\/:*?"<>|]+/g, '-').trim() || fallback;
+    return clean;
+  }
+
+  async function openIncomingPdfBuffer(buffer, name = 'documento.pdf') {
+    const safeName = safeIncomingFileName(name);
+    const finalName = safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`;
+    const blob = new Blob([buffer], { type:'application/pdf' });
+    const file = new File([blob], finalName, { type:'application/pdf' });
+    return await importFiles([file], { mode:'replace', index:0 });
+  }
+
+  // 2) Extensão: o handler MIME entrega diretamente o stream já aberto pelo Chrome.
+  //    READY/PING tornam a passagem robusta mesmo quando o iframe termina antes do stream.
   window.addEventListener('message', async ev => {
     const data = ev.data || {};
     if (!String(ev.origin || '').startsWith('chrome-extension://')) return;
-    if (data.source !== 'PDFSTUDIO_EXTENSION' || data.type !== 'OPEN_PDF_BUFFER' || !data.buffer) return;
+    if (data.source !== 'PDFSTUDIO_EXTENSION') return;
+
+    if (data.type === 'PING') {
+      try { ev.source?.postMessage({ source:'PDFSTUDIO_APP', type:'READY' }, ev.origin); } catch (_) {}
+      return;
+    }
+
+    if (data.type !== 'OPEN_PDF_BUFFER' || !data.buffer) return;
     try {
-      const blob = new Blob([data.buffer], { type:'application/pdf' });
-      const safeName = String(data.name || 'documento.pdf').replace(/[\\/:*?"<>|]+/g, '-');
-      const file = new File([blob], safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`, { type:'application/pdf' });
-      await importFiles([file], { mode:'replace', index:0 });
+      const opened = await openIncomingPdfBuffer(data.buffer, data.name || 'documento.pdf');
+      if (opened === false) throw new Error('O PDF Studio não conseguiu importar o arquivo recebido.');
+      try {
+        ev.source?.postMessage({
+          source:'PDFSTUDIO_APP',
+          type:'OPEN_COMPLETE',
+          requestId:data.requestId || '',
+          name:safeIncomingFileName(data.name || 'documento.pdf')
+        }, ev.origin);
+      } catch (_) {}
     } catch (err) {
+      try {
+        ev.source?.postMessage({
+          source:'PDFSTUDIO_APP',
+          type:'OPEN_ERROR',
+          requestId:data.requestId || '',
+          error:err?.message || 'Não foi possível abrir o PDF.'
+        }, ev.origin);
+      } catch (_) {}
       showToast(err?.message || 'Não foi possível abrir o PDF recebido da extensão.', 'error', 5200);
     }
   });
 
-  // Quando carregado dentro do manipulador da extensão, avisa que está pronto para receber o fluxo.
+  // 3) URL: ?file=https%3A%2F%2F...%2Farquivo.pdf
+  //    Útil para integrações web. A URL precisa ser acessível ao navegador (CORS quando for outro domínio).
+  async function openFileParameter() {
+    let raw = '';
+    try {
+      const params = new URLSearchParams(location.search);
+      raw = params.get('file') || params.get('open') || '';
+      if (!raw || params.get('extension') === '1') return;
+      const target = new URL(raw, location.href);
+      if (!/^https?:$/.test(target.protocol)) throw new Error('O parâmetro de arquivo aceita apenas URLs HTTP/HTTPS.');
+
+      const response = await fetch(target.href, { credentials: target.origin === location.origin ? 'same-origin' : 'omit' });
+      if (!response.ok) throw new Error(`Não foi possível receber o arquivo (${response.status}).`);
+      const blob = await response.blob();
+      const contentType = blob.type || response.headers.get('content-type') || '';
+      let name = new URL(target.href).pathname.split('/').pop() || 'documento.pdf';
+      try { name = decodeURIComponent(name); } catch (_) {}
+      if (!name.toLowerCase().endsWith('.pdf') && contentType.includes('pdf')) name += '.pdf';
+      const file = new File([blob], safeIncomingFileName(name), { type: contentType || 'application/pdf' });
+      await importFiles([file], { mode:'replace', index:0 });
+    } catch (err) {
+      if (raw) showToast(err?.message || 'Não foi possível abrir o arquivo informado na URL.', 'error', 6000);
+    }
+  }
+
+  // Quando carregado dentro do manipulador da extensão, avisa que está pronto.
   try {
     const params = new URLSearchParams(location.search);
     if (window.parent !== window && params.get('extension') === '1') {
       window.parent.postMessage({ source:'PDFSTUDIO_APP', type:'READY' }, '*');
+    } else if (params.get('file') || params.get('open')) {
+      queueMicrotask(openFileParameter);
     }
   } catch (_) {}
 

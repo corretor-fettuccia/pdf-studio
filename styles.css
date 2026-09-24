@@ -823,7 +823,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 @media (max-width: 560px) { .import-source-grid { grid-template-columns: 1fr; } .import-source-option { min-height: 112px; } }
 
 
-/* v1.6.0 - PWA / instalação */
+/* v1.7.0 - PWA / instalação */
 .install-app-btn { white-space: nowrap; }
 .install-app-btn.is-installed { opacity: .72; cursor: default; }
 .install-app-btn.install-ready { border-color: rgba(226,74,59,.55); background: rgba(226,74,59,.08); }

@@ -1,5 +1,5 @@
-/* PDF Studio v1.6.0 - Service Worker */
-const CACHE_NAME = 'pdf-studio-v1.6.0';
+/* PDF Studio v1.7.0 - Service Worker */
+const CACHE_NAME = 'pdf-studio-v1.7.0';
 const APP_SHELL = [
   './',
   './index.html',

@@ -1,4 +1,4 @@
-# PDF Studio V1.6.0
+# PDF Studio V1.7.0
 
 Suíte profissional de visualização, composição e edição visual de PDF feita em HTML, CSS e JavaScript. Os documentos selecionados são processados no navegador; a aplicação não possui backend próprio.
 
@@ -125,9 +125,9 @@ Não há dependência de CDN para essas bibliotecas. O processamento do document
 ## Estrutura do pacote
 O arquivo compactado e o diretório interno seguem o mesmo padrão:
 
-`PDF_Studio.V1.6.0.zip`
+`PDF_Studio.V1.7.0.zip`
 
-`PDF_Studio.V1.6.0/`
+`PDF_Studio.V1.7.0/`
 
 Arquivos principais:
 - `index.html` — interface.
@@ -183,7 +183,7 @@ PDF Studio é software livre: você pode redistribuí-lo e/ou modificá-lo sob o
 - Compatibilidade opcional com a extensão Chrome **PDF Studio Clipboard Bridge**, usada como fallback de clipboard ao executar o HTML localmente.
 
 
-## PWA / instalar no navegador (V1.6.0)
+## PWA / instalar no navegador (V1.7.0)
 
 A versão web pode ser publicada em GitHub Pages e instalada como PWA. O botão **Instalar no navegador** usa o prompt nativo do navegador quando disponível. O Service Worker mantém o shell do aplicativo e as bibliotecas de PDF em cache para uso offline após a primeira execução online.
 
