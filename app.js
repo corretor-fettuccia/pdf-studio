@@ -1,4 +1,4 @@
-/* PDF Studio v1.5.0 - client-side PDF viewer/composer/editor */
+/* PDF Studio v1.6.0 - client-side PDF viewer/composer/editor + PWA */
 (() => {
   'use strict';
 
@@ -33,6 +33,8 @@
     aboutBtn: $('#aboutBtn'),
     printBtn: $('#printBtn'),
     exportBtn: $('#exportBtn'),
+    installAppBtn: $('#installAppBtn'),
+    installAppLabel: $('#installAppLabel'),
 
     pageCountBadge: $('#pageCountBadge'),
     dropzone: $('#dropzone'),
@@ -2541,6 +2543,108 @@
     if (wantsNext) goPage(1, 'top');
     else if (wantsPrev) goPage(-1, 'bottom');
   }, { passive:false });
+
+
+  // PWA / instalação no navegador -------------------------------------------------
+  let deferredInstallPrompt = null;
+
+  function runningStandalone() {
+    return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator.standalone === true;
+  }
+
+  function refreshInstallButton() {
+    if (!els.installAppBtn) return;
+    if (runningStandalone()) {
+      els.installAppBtn.classList.add('is-installed');
+      els.installAppBtn.classList.remove('install-ready');
+      els.installAppBtn.disabled = true;
+      if (els.installAppLabel) els.installAppLabel.textContent = 'Instalado';
+      els.installAppBtn.title = 'PDF Studio já está instalado neste navegador';
+      return;
+    }
+    els.installAppBtn.disabled = false;
+    els.installAppBtn.classList.toggle('install-ready', Boolean(deferredInstallPrompt));
+    if (els.installAppLabel) els.installAppLabel.textContent = 'Instalar no navegador';
+    els.installAppBtn.title = deferredInstallPrompt
+      ? 'Instalar o PDF Studio como aplicativo neste navegador'
+      : 'Instalar o PDF Studio pelo menu do navegador';
+  }
+
+  window.addEventListener('beforeinstallprompt', ev => {
+    ev.preventDefault();
+    deferredInstallPrompt = ev;
+    refreshInstallButton();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    refreshInstallButton();
+    showToast('PDF Studio instalado no navegador.', 'success', 3600);
+  });
+
+  els.installAppBtn?.addEventListener('click', async () => {
+    if (runningStandalone()) return;
+    if (!deferredInstallPrompt) {
+      showToast('Se o aviso ainda não apareceu, use o menu do Chrome e escolha “Instalar PDF Studio”.', 'info', 5200);
+      return;
+    }
+    try {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+    } catch (_) {
+      // O navegador controla o prompt; nenhuma ação adicional é necessária.
+    } finally {
+      deferredInstallPrompt = null;
+      refreshInstallButton();
+    }
+  });
+
+  // O GitHub Pages usa HTTPS, portanto o Service Worker pode deixar o Studio offline.
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('Service Worker não registrado:', err));
+    }, { once:true });
+  }
+
+  // Arquivos abertos pelo sistema operacional em uma instalação PWA.
+  if ('launchQueue' in window && window.launchQueue?.setConsumer) {
+    window.launchQueue.setConsumer(async launchParams => {
+      try {
+        const handles = Array.from(launchParams?.files || []);
+        if (!handles.length) return;
+        const files = [];
+        for (const handle of handles) files.push(await handle.getFile());
+        if (files.length) await importFiles(files, { mode:'replace', index:0 });
+      } catch (err) {
+        showToast(err?.message || 'Não foi possível abrir o arquivo enviado pelo sistema.', 'error', 5200);
+      }
+    });
+  }
+
+  // Ponte usada pela extensão MIME Handler. O PDF chega como ArrayBuffer sem novo download.
+  window.addEventListener('message', async ev => {
+    const data = ev.data || {};
+    if (!String(ev.origin || '').startsWith('chrome-extension://')) return;
+    if (data.source !== 'PDFSTUDIO_EXTENSION' || data.type !== 'OPEN_PDF_BUFFER' || !data.buffer) return;
+    try {
+      const blob = new Blob([data.buffer], { type:'application/pdf' });
+      const safeName = String(data.name || 'documento.pdf').replace(/[\\/:*?"<>|]+/g, '-');
+      const file = new File([blob], safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`, { type:'application/pdf' });
+      await importFiles([file], { mode:'replace', index:0 });
+    } catch (err) {
+      showToast(err?.message || 'Não foi possível abrir o PDF recebido da extensão.', 'error', 5200);
+    }
+  });
+
+  // Quando carregado dentro do manipulador da extensão, avisa que está pronto para receber o fluxo.
+  try {
+    const params = new URLSearchParams(location.search);
+    if (window.parent !== window && params.get('extension') === '1') {
+      window.parent.postMessage({ source:'PDFSTUDIO_APP', type:'READY' }, '*');
+    }
+  } catch (_) {}
+
+  refreshInstallButton();
 
   window.addEventListener('beforeunload', ev => {
     if (!state.dirty) return;

@@ -4,8 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDF Studio</title>
+  <meta name="theme-color" content="#14181d" />
+  <meta name="application-name" content="PDF Studio" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <meta name="description" content="Suíte profissional para visualizar, organizar, editar, rotacionar, combinar, imprimir e exportar PDFs diretamente no navegador." />
-  <meta name="pdf-studio-clipboard-bridge" content="PDF_Studio.V1.5.0" />
+  <meta name="pdf-studio-clipboard-bridge" content="PDF_Studio.V1.6.0" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -16,7 +21,7 @@
         <div class="brand-copy">
           <div class="brand-title-row">
             <div class="brand-title">PDF Studio</div>
-            <span class="version-badge">v1.5.0</span>
+            <span class="version-badge">v1.6.0</span>
           </div>
           <div class="document-name-row">
             <input id="documentNameInput" class="document-name-input" value="documento.pdf" aria-label="Nome do documento" spellcheck="false" />
@@ -44,6 +49,7 @@
         </div>
         <button class="btn btn-ghost" id="organizeBtn" title="Organizar páginas em grade" disabled><span>▦</span><span>Organizar</span></button>
         <button class="btn btn-ghost" id="propertiesBtn" title="Propriedades do documento" disabled><span>ⓘ</span><span>Propriedades</span></button>
+        <button class="btn btn-ghost install-app-btn" id="installAppBtn" title="Instalar o PDF Studio neste navegador"><span>⊕</span><span id="installAppLabel">Instalar no navegador</span></button>
         <button class="btn btn-ghost" id="aboutBtn" title="Sobre o PDF Studio"><span>ⓘ</span><span>Sobre</span></button>
         <button class="btn btn-ghost" id="printBtn" title="Imprimir documento (Ctrl+P)" disabled><span>⎙</span><span>Imprimir</span></button>
         <button class="btn btn-primary" id="exportBtn" title="Exportar PDF (Ctrl+S)" disabled><span>⇩</span><span>Exportar PDF</span></button>
@@ -277,16 +283,16 @@
         <button class="icon-btn" id="closeAboutBtn" aria-label="Fechar">×</button>
       </div>
       <div class="properties-grid">
-        <div class="property-item"><span>Versão</span><strong>V1.5.0</strong></div>
+        <div class="property-item"><span>Versão</span><strong>V1.6.0</strong></div>
         <div class="property-item"><span>Autor</span><strong>Roberto Fettuccia</strong></div>
         <div class="property-item"><span>Licença do PDF Studio</span><strong>GPL-3.0-or-later</strong></div>
-        <div class="property-item"><span>Execução</span><strong>Local / offline</strong></div>
+        <div class="property-item"><span>Execução</span><strong>Web / PWA / offline</strong></div>
       </div>
       <div class="about-dependencies">
         <h3>Dependências incluídas</h3>
         <div class="dependency-row"><div><strong>PDF.js 3.11.174</strong><span>Renderização, leitura e extração de texto de PDFs</span></div><code>Apache-2.0</code></div>
         <div class="dependency-row"><div><strong>pdf-lib 1.17.1</strong><span>Composição, criação e exportação de PDFs</span></div><code>MIT</code></div>
-        <p class="about-note">As bibliotecas são carregadas do diretório <code>libs/</code>. Os textos das licenças de terceiros acompanham o pacote. O código-fonte do PDF Studio é distribuído sob GPL-3.0-or-later.</p>
+        <p class="about-note">As bibliotecas PDF são carregadas por CDN e armazenadas pelo Service Worker para uso offline após a primeira execução online. Os textos das licenças de terceiros acompanham o pacote. O código-fonte do PDF Studio é distribuído sob GPL-3.0-or-later.</p>
       </div>
     </div>
   </div>

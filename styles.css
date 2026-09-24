@@ -821,3 +821,13 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .import-source-status.error { color: #f0a59d; }
 .import-source-status.success { color: #8fd2ae; }
 @media (max-width: 560px) { .import-source-grid { grid-template-columns: 1fr; } .import-source-option { min-height: 112px; } }
+
+
+/* v1.6.0 - PWA / instalação */
+.install-app-btn { white-space: nowrap; }
+.install-app-btn.is-installed { opacity: .72; cursor: default; }
+.install-app-btn.install-ready { border-color: rgba(226,74,59,.55); background: rgba(226,74,59,.08); }
+@media (max-width: 980px) {
+  .install-app-btn span:last-child { display: none; }
+  .install-app-btn { width: 38px; padding: 0; justify-content: center; }
+}
